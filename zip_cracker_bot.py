@@ -1,77 +1,86 @@
 import os
+import shutil
 import pyzipper
 import py7zr
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes, CommandHandler
 
-BOT_TOKEN = os.getenv("8080301293:AAFwfN8Vk7tJfB_xHTvgjMRERp5EmUcvTLw")
+BOT_TOKEN = "8080301293:AAFNcTPZioitMyNjO-AWcwC58tKOaBAZT-w"
 
-# Crack ZIP using pyzipper (AES compatible)
-def crack_zip(file_path):
-    for pwd in range(0, 1000):
-        try:
-            with pyzipper.AESZipFile(file_path) as zf:
-                zf.pwd = str(pwd).zfill(3).encode()
-                zf.extractall(path="extracted_zip/")
-            return str(pwd).zfill(3)
-        except:
-            continue
-    return None
-
-# Crack .7z files using py7zr
-def crack_7z(file_path):
-    for pwd in range(0, 1000):
-        try:
-            with py7zr.SevenZipFile(file_path, mode='r', password=str(pwd).zfill(3)) as archive:
-                archive.extractall(path="extracted_7z/")
-            return str(pwd).zfill(3)
-        except:
-            continue
-    return None
-
-# Determine file type and crack accordingly
-def crack_file(file_path):
-    if file_path.endswith(".zip"):
-        return crack_zip(file_path)
-    elif file_path.endswith(".7z"):
-        return crack_7z(file_path)
-    else:
-        return None
-
-# /start command
+# /start command handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Welcome User!\n\n📁 Send your password protected `.zip` or `.7z` file.\n✅I will try to crack the password using 000–999.\n✅Password Must Have Under 0-999")
+    await update.message.reply_text("👋 *Welcome User!*\nSend your password protected `.zip` or `.7z` file.", parse_mode="Markdown")
 
-# When user sends file
+# Handle both .zip and .7z files
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file = update.message.document
-    if not file.file_name.endswith((".zip", ".7z")):
+    file_name = file.file_name.lower()
+
+    if not file_name.endswith((".zip", ".7z")):
         await update.message.reply_text("❌ Only .zip and .7z files are supported.")
         return
 
-    await update.message.reply_text("✅ Got your file! Cracking in progress... Please wait ⏳")
-    file_path = f"downloads/{file.file_name}"
     os.makedirs("downloads", exist_ok=True)
-
-    # Download file
-    file_obj = await file.get_file()
+    file_path = f"downloads/{file.file_id}_{file_name}"
+    file_obj = await context.bot.get_file(file.file_id)
     await file_obj.download_to_drive(file_path)
+
+    await update.message.reply_text("📥 Got it! Now wait a min, I am cracking your file 🔓")
 
     # Crack password
     password = crack_file(file_path)
 
     if password:
-        await update.message.reply_text(f"🔐 Password found: `{password}`", parse_mode='Markdown')
+        await update.message.reply_text(f"✅ *Password Found:* `{password}`", parse_mode="Markdown")
     else:
-        await update.message.reply_text("❌ Password not found in range 000–999.")
+        await update.message.reply_text("❌ Sorry, password not found in range 000–999.")
+
+    # Clean up
+    shutil.rmtree("unzipped", ignore_errors=True)
+    os.remove(file_path)
+
+# Detect and crack file type
+def crack_file(file_path):
+    if file_path.endswith(".zip"):
+        return crack_zip(file_path)
+    elif file_path.endswith(".7z"):
+        return crack_7z(file_path)
+    return None
+
+# Crack .zip using pyzipper
+def crack_zip(zip_path):
+    os.makedirs("unzipped", exist_ok=True)
+    for i in range(1000):
+        password = f"{i:03}"
+        try:
+            with pyzipper.AESZipFile(zip_path) as zf:
+                zf.pwd = password.encode('utf-8')
+                zf.extractall("unzipped/")
+                return password
+        except:
+            continue
+    return None
+
+# Crack .7z using py7zr
+def crack_7z(sevenz_path):
+    os.makedirs("unzipped", exist_ok=True)
+    for i in range(1000):
+        password = f"{i:03}"
+        try:
+            with py7zr.SevenZipFile(sevenz_path, mode='r', password=password) as archive:
+                archive.extractall(path="unzipped/")
+                return password
+        except:
+            continue
+    return None
 
 # Main function
-async def main():
+def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
-    await app.run_polling()
+    print("🤖 Bot is running...")
+    app.run_polling()
 
-if __name__ == '__main__':
-    import asyncio
-    asyncio.run(main())
+if __name__ == "__main__":
+    main()
