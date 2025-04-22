@@ -1,21 +1,24 @@
 import os
-import zipfile
+import pyzipper
 import py7zr
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 BOT_TOKEN = os.getenv("8080301293:AAFwfN8Vk7tJfB_xHTvgjMRERp5EmUcvTLw")
 
+# Crack ZIP using pyzipper (AES compatible)
 def crack_zip(file_path):
     for pwd in range(0, 1000):
         try:
-            with zipfile.ZipFile(file_path) as zf:
-                zf.extractall(pwd=str(pwd).zfill(3).encode())
+            with pyzipper.AESZipFile(file_path) as zf:
+                zf.pwd = str(pwd).zfill(3).encode()
+                zf.extractall(path="extracted_zip/")
             return str(pwd).zfill(3)
         except:
             continue
     return None
 
+# Crack .7z files using py7zr
 def crack_7z(file_path):
     for pwd in range(0, 1000):
         try:
@@ -26,6 +29,7 @@ def crack_7z(file_path):
             continue
     return None
 
+# Determine file type and crack accordingly
 def crack_file(file_path):
     if file_path.endswith(".zip"):
         return crack_zip(file_path)
@@ -34,9 +38,11 @@ def crack_file(file_path):
     else:
         return None
 
+# /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("👋 Welcome User!\n\n📁 Send your password protected `.zip` or `.7z` file.\n✅I will try to crack the password using 000–999.\n✅Password Must Have Under 0-999")
 
+# When user sends file
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file = update.message.document
     if not file.file_name.endswith((".zip", ".7z")):
@@ -47,9 +53,11 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file_path = f"downloads/{file.file_name}"
     os.makedirs("downloads", exist_ok=True)
 
+    # Download file
     file_obj = await file.get_file()
     await file_obj.download_to_drive(file_path)
 
+    # Crack password
     password = crack_file(file_path)
 
     if password:
@@ -57,6 +65,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("❌ Password not found in range 000–999.")
 
+# Main function
 async def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
