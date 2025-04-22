@@ -1,6 +1,6 @@
 services:
-  - type: web
+  - type: worker
     name: telegram-zip-bot
     env: python
-    buildCommand: ""
+    buildCommand: pip install -r requirements.txt
     startCommand: python zip_cracker_bot.py
