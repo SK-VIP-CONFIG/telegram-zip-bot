@@ -5,7 +5,7 @@ import py7zr
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes, CommandHandler
 
-BOT_TOKEN = "8080301293:AAFNcTPZioitMyNjO-AWcwC58tKOaBAZT-w"
+BOT_TOKEN = "8080301293:AAFwfN8Vk7tJfB_xHTvgjMRERp5EmUcvTLw"
 
 # /start command handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
