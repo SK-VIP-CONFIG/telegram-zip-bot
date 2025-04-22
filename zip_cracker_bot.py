@@ -9,7 +9,7 @@ BOT_TOKEN = "8080301293:AAFwfN8Vk7tJfB_xHTvgjMRERp5EmUcvTLw"
 
 # /start command handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 *Welcome User!*\nSend Your Password Protected Zip File", parse_mode="Markdown")
+    await update.message.reply_text("👋 *Welcome User!*\nSend Your Password Protected Zip File\nPassword Must Have Umder 0-999", parse_mode="Markdown")
 
 # When user sends ZIP file
 async def handle_zip(update: Update, context: ContextTypes.DEFAULT_TYPE):
