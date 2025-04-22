@@ -1,64 +1,68 @@
 import os
-import pyzipper
+import zipfile
+import py7zr
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes, CommandHandler
-import shutil
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-BOT_TOKEN = "8080301293:AAFwfN8Vk7tJfB_xHTvgjMRERp5EmUcvTLw"
-  # <-- Paste your token here
+BOT_TOKEN = os.getenv("8080301293:AAFwfN8Vk7tJfB_xHTvgjMRERp5EmUcvTLw")
 
-# /start command handler
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 *Welcome User!*\n💌Send Your Password Protected Zip File\n✅Password Must Have Under 0-999", parse_mode="Markdown")
-
-# When user sends ZIP file
-async def handle_zip(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    file = update.message.document
-    if not file.file_name.endswith(".zip"):
-        await update.message.reply_text("❌ Please send a .zip file only.")
-        return
-
-    # Download ZIP
-    file_path = f"downloads/{file.file_id}.zip"
-    os.makedirs("downloads", exist_ok=True)
-    new_file = await context.bot.get_file(file.file_id)
-    await new_file.download_to_drive(file_path)
-
-    await update.message.reply_text("📥 Got it! Now wait a min, I am cracking your zip 🔓")
-
-    # Crack ZIP
-    password = crack_zip(file_path)
-
-    if password:
-        await update.message.reply_text(f"✅ *Password Found:* `{password}`", parse_mode="Markdown")
-    else:
-        await update.message.reply_text("❌ Sorry, password not found in range 000-999.")
-
-    # Clean up
-    shutil.rmtree("unzipped", ignore_errors=True)
-    os.remove(file_path)
-
-# Cracking logic
-def crack_zip(zip_path):
-    os.makedirs("unzipped", exist_ok=True)
-    for i in range(1000):
-        password = f"{i:03}"
+def crack_zip(file_path):
+    for pwd in range(0, 1000):
         try:
-            with pyzipper.AESZipFile(zip_path) as zf:
-                zf.pwd = password.encode('utf-8')
-                zf.extractall("unzipped/")
-                return password
+            with zipfile.ZipFile(file_path) as zf:
+                zf.extractall(pwd=str(pwd).zfill(3).encode())
+            return str(pwd).zfill(3)
         except:
             continue
     return None
 
-# Main function
-def main():
+def crack_7z(file_path):
+    for pwd in range(0, 1000):
+        try:
+            with py7zr.SevenZipFile(file_path, mode='r', password=str(pwd).zfill(3)) as archive:
+                archive.extractall(path="extracted_7z/")
+            return str(pwd).zfill(3)
+        except:
+            continue
+    return None
+
+def crack_file(file_path):
+    if file_path.endswith(".zip"):
+        return crack_zip(file_path)
+    elif file_path.endswith(".7z"):
+        return crack_7z(file_path)
+    else:
+        return None
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("👋 Welcome User!\n\n📁 Send your password protected `.zip` or `.7z` file.\n✅I will try to crack the password using 000–999.\n✅Password Must Have Under 0-999")
+
+async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    file = update.message.document
+    if not file.file_name.endswith((".zip", ".7z")):
+        await update.message.reply_text("❌ Only .zip and .7z files are supported.")
+        return
+
+    await update.message.reply_text("✅ Got your file! Cracking in progress... Please wait ⏳")
+    file_path = f"downloads/{file.file_name}"
+    os.makedirs("downloads", exist_ok=True)
+
+    file_obj = await file.get_file()
+    await file_obj.download_to_drive(file_path)
+
+    password = crack_file(file_path)
+
+    if password:
+        await update.message.reply_text(f"🔐 Password found: `{password}`", parse_mode='Markdown')
+    else:
+        await update.message.reply_text("❌ Password not found in range 000–999.")
+
+async def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.Document.ALL, handle_zip))
-    print("🤖 Bot is running...")
-    app.run_polling()
+    app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
+    await app.run_polling()
 
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    import asyncio
+    asyncio.run(main())
