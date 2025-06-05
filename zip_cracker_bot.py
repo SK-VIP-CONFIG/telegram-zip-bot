@@ -5,13 +5,17 @@ import py7zr
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes, CommandHandler
 
+# Telegram Bot Token (replace with your own if needed)
 BOT_TOKEN = "8080301293:AAFwfN8Vk7tJfB_xHTvgjMRERp5EmUcvTLw"
 
 # /start command handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 *Welcome User!*\nSend your password protected `.zip` or `.7z` file.", parse_mode="Markdown")
+    await update.message.reply_text(
+        "👋 *Welcome User!*\nSend your password protected `.zip` or `.7z` file.",
+        parse_mode="Markdown"
+    )
 
-# Handle both .zip and .7z files
+# Handle .zip and .7z files
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file = update.message.document
     file_name = file.file_name.lower()
@@ -33,7 +37,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if password:
         await update.message.reply_text(f"✅ *Password Found:* `{password}`", parse_mode="Markdown")
     else:
-        await update.message.reply_text("❌ Sorry, password not found in range 000–999.")
+        await update.message.reply_text("❌ Sorry, password not found in range 0–999.")
 
     # Clean up
     shutil.rmtree("unzipped", ignore_errors=True)
@@ -47,11 +51,11 @@ def crack_file(file_path):
         return crack_7z(file_path)
     return None
 
-# Crack .zip using pyzipper
+# Crack .zip using pyzipper (0–999)
 def crack_zip(zip_path):
     os.makedirs("unzipped", exist_ok=True)
     for i in range(1000):
-        password = f"{i:03}"
+        password = str(i)
         try:
             with pyzipper.AESZipFile(zip_path) as zf:
                 zf.pwd = password.encode('utf-8')
@@ -61,11 +65,11 @@ def crack_zip(zip_path):
             continue
     return None
 
-# Crack .7z using py7zr
+# Crack .7z using py7zr (0–999)
 def crack_7z(sevenz_path):
     os.makedirs("unzipped", exist_ok=True)
     for i in range(1000):
-        password = f"{i:03}"
+        password = str(i)
         try:
             with py7zr.SevenZipFile(sevenz_path, mode='r', password=password) as archive:
                 archive.extractall(path="unzipped/")
@@ -84,3 +88,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
